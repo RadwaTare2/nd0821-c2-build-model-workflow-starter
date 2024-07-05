@@ -4,15 +4,31 @@ conda_env: conda.yml
 entry_points:
   main:
     parameters:
-      parameter1:
-        description: "Description of parameter1."
-        type: string
-      parameter2:
-        description: "Description of parameter2."
-        type: string
-      parameter3:
-        description: "Description of parameter3."
+
+      input_artifact:
+        description: 'Description of input_artifact'
         type: string
 
+      output_artifact:
+        description: 'Description of output_artifact'
+        type: string
+
+      output_type:
+        description: 'Description of output_type'
+        type: string
+
+      output_description:
+        description: 'Description of output_description'
+        type: string
+
+      min_price:
+        description: 'Description of min_price'
+        type: float
+
+      max_price:
+        description: 'Description of max_price'
+        type: float
+
+
     command: >-
-        python run.py --parameter1 {parameter1} --parameter2 {parameter2} --parameter3 {parameter3}
+        python run.py  --input_artifact {input_artifact}  --output_artifact {output_artifact}  --output_type {output_type}  --output_description {output_description}  --min_price {min_price}  --max_price {max_price} 

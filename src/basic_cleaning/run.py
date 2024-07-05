@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 """
-Performs basic cleaning on the data and saves the results in Weights & Biases
+Download from W&B the raw dataset and apply some basic data cleaning, exporting the result to a new artifact
 """
 import argparse
 import logging
 import wandb
+import pandas as pd
+import os
 
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)-15s %(message)s")
@@ -12,58 +14,101 @@ logger = logging.getLogger()
 
 
 def go(args):
-    # Initialize Weights & Biases run
-    run = wandb.init(job_type="basic_cleaning")
+
+    os.environ["PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION"] = "python"
+
+    run = wandb.init(job_type="job_t_cleaning")
     run.config.update(args)
 
-    # Example placeholder code for data cleaning
-    logger.info("Starting data cleaning process...")
-    logger.info(f"Parameter 1: {args.parameter1}")
-    logger.info(f"Parameter 2: {args.parameter2}")
-    logger.info(f"Parameter 3: {args.parameter3}")
-
-    # Placeholder for actual data cleaning logic
-    # Replace this with your actual data cleaning code
-    cleaned_data = {
-        "param1": args.parameter1,
-        "param2": args.parameter2,
-        "param3": args.parameter3
-    }
-
-    # Log metrics or results to Weights & Biases
-    # Example: wandb.log({"accuracy": 0.95})
-
-    logger.info("Data cleaning completed.")
-    logger.info("Saving results to Weights & Biases...")
-    # Example: run.log({"cleaned_data": cleaned_data})
-
-    # Finish Weights & Biases run
-    run.finish()
 
 
-if __name__ == "_main_":
-    parser = argparse.ArgumentParser(description="Perform basic data cleaning.")
+    # Download input artifact. This will also log that this script is using this
+    # particular version of the artifact
+    # artifact_local_path = run.use_artifact(args.input_artifact).file()
+
+    artifact_local_path = run.use_artifact(args.input_artifact).file()
+    logger.info(f"Downloaded input artifact to {artifact_local_path}")
+
+    # Read the input data
+    df = pd.read_csv(artifact_local_path)
+
+    # Basic data cleaning: Remove outliers
+    min_price = args.min_price
+    max_price = args.max_price
+
+    logger.info(f"Removing outliers outside the range {min_price} to {max_price}")
+    df = df[df['price'].between(min_price, max_price)].copy()
+
+    # Drop rows with missing values
+    logger.info("Dropping rows with missing values")
+    df.dropna(inplace=True)
+
+    # Save cleaned data to a CSV file
+    cleaned_data_path = "clean_sample.csv"
+    idx = df['longitude'].between(-74.25, -73.50) & df['latitude'].between(40.5, 41.2)
+    df = df[idx].copy()
+    df.to_csv(cleaned_data_path, index=False)
+    logger.info(f"Cleaned data saved to {cleaned_data_path}")
+
+    # Log the cleaned data to Weights & Biases
+    artifact = wandb.Artifact(
+        args.output_artifact,
+        type=args.output_type,
+        description=args.output_description,
+    )
+    artifact.add_file(cleaned_data_path)
+    run.log_artifact(artifact)
+    logger.info("Cleaned data artifact logged to Weights & Biases")
+    ######################
+
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(description="A very basic data cleaning")
+
 
     parser.add_argument(
-        "--parameter1",
-        type=str,
-        help="Description of parameter1.",
+        "--input_artifact", 
+        type= str,
+        help="Description of input_artifact",
         required=True
     )
 
     parser.add_argument(
-        "--parameter2",
-        type=int,
-        help="Description of parameter2.",
+        "--output_artifact", 
+        type= str,
+        help="Description of output_artifact",
         required=True
     )
 
     parser.add_argument(
-        "--parameter3",
-        type=float,
-        help="Description of parameter3.",
+        "--output_type", 
+        type= str,
+        help="Description of output_type",
         required=True
     )
+
+    parser.add_argument(
+        "--output_description", 
+        type= str,
+        help="Description of output_description",
+        required=True
+    )
+
+    parser.add_argument(
+        "--min_price", 
+        type= float,
+        help="Description of min_price",
+        required=True
+    )
+
+    parser.add_argument(
+        "--max_price", 
+        type= float,
+        help="Description of max_price",
+        required=True
+    )
+
 
     args = parser.parse_args()
 
